@@ -5,6 +5,7 @@ export default class WebrctClient {
         this.ws = null;
         this.pc = null;
         this.restartTimeout = null;
+        this.isOnline = false;
         if (!options?.videoElement)
             throw new Error('videoElement is required');
         if (!options.wsUri)
@@ -28,6 +29,7 @@ export default class WebrctClient {
         this.ws.onclose = () => {
             console.log('ws closed');
             this.ws = null;
+            this.isOnline = false;
             this.onOffline();
             this.scheduleRestart();
         };
@@ -57,11 +59,11 @@ export default class WebrctClient {
                     // do not close the WebSocket connection
                     // in order to allow the other side of the connection
                     // to switch to the "connected" state before WebSocket is closed.
+                    this.isOnline = true;
                     this.onOnline();
                     break;
                 case 'disconnected':
                     this.scheduleRestart();
-                    this.onOffline();
             }
         };
         this.pc.ontrack = evt => {
@@ -114,6 +116,10 @@ export default class WebrctClient {
         if (this.pc !== null) {
             this.pc.close();
             this.pc = null;
+        }
+        if (this.isOnline) {
+            this.isOnline = false;
+            this.onOffline();
         }
         this.restartTimeout = window.setTimeout(() => {
             this.restartTimeout = null;

@@ -6,6 +6,7 @@ export default class WebrctClient {
   ws: WebSocket | null = null
   pc: RTCPeerConnection | null = null
   restartTimeout: number | null = null
+  isOnline: boolean = false
   onOnline: () => void
   onOffline: () => void
 
@@ -35,6 +36,7 @@ export default class WebrctClient {
     this.ws.onclose = () => {
       console.log('ws closed')
       this.ws = null
+      this.isOnline = false
       this.onOffline()
       this.scheduleRestart()
     }
@@ -72,12 +74,12 @@ export default class WebrctClient {
           // do not close the WebSocket connection
           // in order to allow the other side of the connection
           // to switch to the "connected" state before WebSocket is closed.
+          this.isOnline = true
           this.onOnline()
           break
 
         case 'disconnected':
           this.scheduleRestart()
-          this.onOffline()
       }
     }
 
@@ -102,7 +104,7 @@ export default class WebrctClient {
     })
   }
 
-  onRemoteDescription(msg) {
+  onRemoteDescription(msg: MessageEvent) {
     if (this.pc === null || this.ws === null) {
       return
     }
@@ -111,7 +113,7 @@ export default class WebrctClient {
     this.ws.onmessage = msg => this.onRemoteCandidate(msg)
   }
 
-  onIceCandidate(evt) {
+  onIceCandidate(evt: RTCPeerConnectionIceEvent) {
     if (this.ws === null) {
       return
     }
@@ -123,7 +125,7 @@ export default class WebrctClient {
     }
   }
 
-  onRemoteCandidate(msg) {
+  onRemoteCandidate(msg: MessageEvent) {
     if (this.pc === null) {
       return
     }
@@ -145,7 +147,10 @@ export default class WebrctClient {
       this.pc.close()
       this.pc = null
     }
-
+    if(this.isOnline){
+        this.isOnline = false
+        this.onOffline()
+    }
     this.restartTimeout = window.setTimeout(() => {
       this.restartTimeout = null
       this.start()
